@@ -1,22 +1,32 @@
 // ==UserScript==
-// @name         New Userscript
+// @name         New ES6-Userscript
 // @namespace    http://tampermonkey.net/
 // @version      0.1
-// @description  try to take over the world!
+// @description  shows how to use babel compiler
 // @author       You
 // @match        https://www.geoguessr.com/
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=geoguessr.com
-// @grant        none
+// @require      https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/6.18.2/babel.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/babel-polyfill/6.16.0/polyfill.js
+// @require      https://www.gstatic.com/firebasejs/9.10.0/firebase-app-compat.js
+// @require      https://www.gstatic.com/firebasejs/9.10.0/firebase-firestore-compat.js
+// @require      https://www.gstatic.com/firebasejs/9.10.0/firebase-auth-compat.js
+// @match        <$URL$>
+// @icon         <$ICON$>
 // ==/UserScript==
 
-let API_Key = 'bdc_a689871bdba44735bd320eae4d6655ee';
+var inline_src = (<><![CDATA[
+
+const firebaseConfig = {
+    //config
+  };
+
+const app = firebase.initializeApp(firebaseConfig);
+let API_Key = '';
 const ERROR_RESP = -1000000;
 let csvGuesses = "data:text/csv;charset=utf-8,";
 
-const storeCSV = 1;
-const storeDB = 0;
 
-//handles territories
 var CountryDict = {
     AF: 'AF',
     AX: 'FI', // Aland Islands
@@ -283,12 +293,12 @@ async function getCoords() {
     var ret = await fetch(api_url)
         .then(res => res.json())
         .then((out) => {
-            let guess_counter = out.player.guesses.length;
-            let guess = [out.player.guesses[guess_counter-1].lat,out.player.guesses[guess_counter-1].lng];
-            let ans = [out.rounds[guess_counter-1].lat,out.rounds[guess_counter-1].lng];
-            let round = [guess,ans];
-            return round;
-        }).catch(err => { throw err });
+        let guess_counter = out.player.guesses.length;
+        let guess = [out.player.guesses[guess_counter-1].lat,out.player.guesses[guess_counter-1].lng];
+        let ans = [out.rounds[guess_counter-1].lat,out.rounds[guess_counter-1].lng];
+        let round = [guess,ans];
+        return round;
+    }).catch(err => { throw err });
     return ret;
 };
 
@@ -313,14 +323,12 @@ async function tryAddGuess() {
 	if (!checkGameMode()) {
 		return;
 	};
-
+	
     let prev = sessionStorage.getItem('prevCoords');
 	var round = await getCoords(); 
-    
     if (prev == round || round == null){
         round = await getCoords();
     }
-    
     if (prev != round){
         let guess = [round[0][0],round[0][1]];
         let ans = [round[1][0],round[1][1]];
@@ -328,27 +336,51 @@ async function tryAddGuess() {
             .then(guessCode => {
             getCountryCode(ans)
                 .then(ansCode => {
-                    const info = document.getElementsByClassName("status_value__xZMNY");
-                    let map = info[0].innerHTML;
-
-                    const info2 = document.getElementsByClassName('round-result_score__LJRS1');
-                    let points = info2[0].innerHTML.replace(',','');
-                    points = points.replace(' points','');
-
-                    let output = [map,ansCode,guess,guessCode,points]; 
-                    addToCSV(output);
-
-                    sessionStorage.setItem('prevCoords', round);
+                const info = document.getElementsByClassName("status_value__xZMNY");
+                let map = info[0].innerHTML;
+                
+                const info2 = document.getElementsByClassName('round-result_score__LJRS1');
+                let points = info2[0].innerHTML.replace(',','');
+                points = points.replace(' points','');
+                
+                let output = [map,ansCode,guess,guessCode,points]; 
+                console.log(output);
+                sessionStorage.setItem('prevCoords', round);
+                //addToCSV(output);
+                addDB(output);
             });
         });
     }
 };
 
+function writeUserData(map,cC,gCoords,gC,points) {
+    console.log(app);
+    const db = app.firestore();
+    const docRef = db.collection("guesses");
+    docRef.add({
+        Map: map,
+        CorrectCountry: cC,
+        GuessesCoords: gCoords,
+        GuessedCountry: gC,
+        Score: points
+    })
+        .then(() => {
+        console.log("Document successfully written!");
+    })
+        .catch((error) => {
+        console.error("Error writing document: ", error);
+    });
+};
+
+function addDB(output){
+    writeUserData(output[0],output[1],output[2],output[3],output[4]);
+};
+
+
 function outputCSV(){
     if (csvGuesses){
         var encodedUri = encodeURI(csvGuesses);
         window.open(encodedUri);
-        console.log('outputCSV');
     };
 };
 
@@ -358,3 +390,8 @@ if (sessionStorage.getItem("prevCoords") == null) {
 
 document.addEventListener('keyup', (e) => { if (e.key === " ") { tryAddGuess(); } });
 document.addEventListener('keypress', (e) => { if (e.key === '6') { outputCSV(); } });
+//document.addEventListener('keypress', (e) => { if (e.key === '8') { addDB(); } });
+
+]]></>).toString();
+var c = Babel.transform(inline_src, { presets: [ "es2015", "es2016" ] });
+eval(c.code);
