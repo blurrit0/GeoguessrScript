@@ -22,10 +22,23 @@ const firebaseConfig = {
   };
 
 const app = firebase.initializeApp(firebaseConfig);
+const db = app.firestore();
+const auth = app.auth();
+firebase.auth().signInWithEmailAndPassword("Email", "Password").catch(function(error) {
+    // Handle Errors here.
+    var errorCode = error.code;
+    var errorMessage = error.message;
+    console.log(errorCode);
+    console.log(errorMessage);
+});
+
+const app = firebase.initializeApp(firebaseConfig);
 let API_Key = '';
 const ERROR_RESP = -1000000;
 let csvGuesses = "data:text/csv;charset=utf-8,";
 
+const storeCSV = 0;
+let enableDB = true;
 
 var CountryDict = {
     AF: 'AF',
@@ -277,6 +290,55 @@ var CountryDict = {
     ZM: 'ZM',
     ZW: 'ZW'
 };
+
+function togDB()
+{
+    enableDB = !enableDB;
+};
+
+document.togDB = togDB;
+
+let guiEnabled = true;
+
+const guiHTML = `
+<div class="section_sectionHeader__WQ7Xz section_sizeMedium__yPqLK"><div class="bars_root___G89E bars_center__vAqnw"><div class="bars_before__xAA7R bars_lengthLong__XyWLx"></div><span class="bars_content__UVGlL"><h3>Firebase Database</h3></span><div class="bars_after__Z1Rxt bars_lengthLong__XyWLx"></div></div></div>
+<div class="start-standard-game_settings__x94PU">
+  <div style="display: flex; justify-content: space-around;">
+    <div style="display: flex; align-items: center;">
+      <span class="game-options_optionLabel__dJ_Cy" style="margin: 0; padding-right: 6px;">Record to DB</span>
+      <input type="checkbox" id="toggleDB" onclick="togDB()" class="toggle_toggle__hwnyw" checked>
+    </div>
+  </div>
+</div>
+</div>
+`
+
+const checkInsertGui = () => {
+    if ((document.querySelector('.copy-link_root__dBcXL') || document.querySelector('.radio-box_root__ka_9S')) && document.getElementById('toggleDB') === null && document.querySelector('.section_sectionMedium__yXgE6')) {
+        document.querySelector('.section_sectionMedium__yXgE6').insertAdjacentHTML('beforeend', guiHTML);
+        if (enableDB)
+        {
+            document.getElementById('toggleDB').checked = true;
+        }
+        else
+        {
+            document.getElementById('toggleDB').checked = false;
+        }
+    }
+}
+
+let observerNew = new MutationObserver((mutations) => {
+    if (guiEnabled) {
+        checkInsertGui();
+    }
+});
+
+observerNew.observe(document.body, {
+    characterDataOldValue: false,
+    subtree: true,
+    childList: true,
+    characterData: false
+});
 
 function checkGameMode() {
     return (location.pathname.startsWith("/game/") || (location.pathname.startsWith("/challenge/")));
